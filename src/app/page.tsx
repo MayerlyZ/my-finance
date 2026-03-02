@@ -1,65 +1,261 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState, useEffect } from 'react';
+import {
+  useFinanceStore,
+  getMonthlyStats,
+  generateInsights,
+  get6MonthsData,
+  getFinancialStudy,
+} from '@/lib/financeStore';
+import { MONTHS_ES, CATEGORY_ICONS } from '@/types/finance';
+import { getUserName } from '@/components/WelcomeScreen';
+import Icon, { IconName } from '@/components/Icon';
+
+export default function DashboardPage() {
+  const now = new Date();
+  const [month, setMonth] = useState(now.getMonth());
+  const [year, setYear] = useState(now.getFullYear());
+  const [userName, setUserName] = useState('');
+  const { transactions, fixedExpenses, isLoaded } = useFinanceStore();
+
+  useEffect(() => {
+    setUserName(getUserName());
+  }, []);
+
+  const stats = getMonthlyStats(transactions, month, year);
+  const prevMonth = month === 0 ? 11 : month - 1;
+  const prevYear = month === 0 ? year - 1 : year;
+  const prevStats = getMonthlyStats(transactions, prevMonth, prevYear);
+  const study = getFinancialStudy(stats.totalIncome, fixedExpenses, stats.totalExpense);
+  const insights = generateInsights(stats, prevStats, study);
+  const chartData = get6MonthsData(transactions, month, year);
+  const maxVal = Math.max(...chartData.map((d) => Math.max(d.income, d.expense)), 1);
+
+  function changeMonth(dir: number) {
+    let m = month + dir, y = year;
+    if (m > 11) { m = 0; y++; } if (m < 0) { m = 11; y--; }
+    setMonth(m); setYear(y);
+  }
+
+  const fmt = (n: number) =>
+    new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
+
+  const topExpenses = Object.entries(stats.expensesByCategory).sort(([, a], [, b]) => b - a).slice(0, 4);
+  const hasFixedExpenses = study.totalFixed > 0;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="page-animate">
+      <header className="page-header">
+        <p className="page-subtitle">{userName ? `Hola, ${userName}` : 'Hola'} — Aquí están tus finanzas</p>
+        <h1 className="page-title">Mi Organizador</h1>
+      </header>
+
+      <div className="page-content">
+        {/* Month Selector */}
+        <div className="month-selector">
+          <button className="month-btn" onClick={() => changeMonth(-1)}>
+            <Icon name="chevron-left" size={18} />
+          </button>
+          <span className="month-label">{MONTHS_ES[month]} {year}</span>
+          <button className="month-btn" onClick={() => changeMonth(1)}>
+            <Icon name="chevron-right" size={18} />
+          </button>
+        </div>
+
+        {/* Total Disponible */}
+        <div className="disponible-hero">
+          <p className="disponible-label">Total Disponible</p>
+          <p className={`disponible-amount ${study.freeAmount >= 0 ? 'balance-positive' : 'balance-negative'}`}>
+            {isLoaded ? fmt(study.freeAmount) : '—'}
+          </p>
+          <p className="disponible-sub">
+            {hasFixedExpenses
+              ? 'Ingresos − Fijos − Variables'
+              : 'Configura tus gastos fijos en la pestaña Fijos'}
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Income / Expense Pills */}
+        <div className="summary-grid">
+          <div className="summary-pill pill-income">
+            <div className="pill-icon"><Icon name="arrow-up-circle" size={22} color="#34C759" /></div>
+            <div className="pill-label">Ingresos</div>
+            <div className="pill-amount pill-amount-income">{isLoaded ? fmt(stats.totalIncome) : '—'}</div>
+          </div>
+          <div className="summary-pill pill-expense">
+            <div className="pill-icon"><Icon name="arrow-down-circle" size={22} color="#FF3B30" /></div>
+            <div className="pill-label">Gastos</div>
+            <div className="pill-amount pill-amount-expense">{isLoaded ? fmt(stats.totalExpense) : '—'}</div>
+          </div>
         </div>
-      </main>
+
+        {/* Estudio Financiero */}
+        {stats.totalIncome > 0 && (
+          <>
+            <div className="section-header">
+              <h2 className="section-title">Estudio Financiero</h2>
+            </div>
+            <div className="study-card">
+              <div className="study-row">
+                <span className="study-label">
+                  <Icon name="arrow-up-circle" size={16} color="var(--ios-green)" />
+                  Ingresos del mes
+                </span>
+                <span className="study-amount green">{fmt(stats.totalIncome)}</span>
+              </div>
+              {hasFixedExpenses && (
+                <div className="study-row">
+                  <span className="study-label">
+                    <Icon name="pin" size={16} color="var(--ios-red)" />
+                    Gastos fijos mensuales
+                  </span>
+                  <span className="study-amount red">−{fmt(study.totalFixed)}</span>
+                </div>
+              )}
+              {hasFixedExpenses && (
+                <div className="study-row">
+                  <span className="study-label bold">
+                    <Icon name="creditcard" size={16} color="var(--ios-blue)" />
+                    Disponible tras fijos
+                  </span>
+                  <span className={`study-amount big ${study.remainingAfterFixed >= 0 ? 'green' : 'red'}`}>
+                    {fmt(study.remainingAfterFixed)}
+                  </span>
+                </div>
+              )}
+              {stats.totalExpense > 0 && (
+                <div className="study-row">
+                  <span className="study-label">
+                    <Icon name="arrow-down-circle" size={16} color="var(--ios-red)" />
+                    Gastos variables
+                  </span>
+                  <span className="study-amount red">−{fmt(stats.totalExpense)}</span>
+                </div>
+              )}
+              <div className="study-row total-row">
+                <span className="study-label bold">
+                  <Icon name="sparkles" size={16} color="var(--ios-green)" />
+                  Libre este mes
+                </span>
+                <span className={`study-amount big ${study.freeAmount >= 0 ? 'green' : 'red'}`}>
+                  {fmt(study.freeAmount)}
+                </span>
+              </div>
+            </div>
+
+            {/* Payment method breakdown */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              <div className="hist-sum-pill">
+                <div className="hist-sum-label" style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+                  <Icon name="banknote" size={13} /> Efectivo
+                </div>
+                <div className="hist-sum-amount" style={{ color: 'var(--ios-green)', fontSize: 14 }}>{fmt(stats.byCash)}</div>
+              </div>
+              <div className="hist-sum-pill">
+                <div className="hist-sum-label" style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+                  <Icon name="creditcard" size={13} /> Transf.
+                </div>
+                <div className="hist-sum-amount" style={{ color: 'var(--ios-blue)', fontSize: 14 }}>{fmt(stats.byTransfer)}</div>
+              </div>
+              <div className="hist-sum-pill">
+                <div className="hist-sum-label" style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+                  <Icon name="chart-bar" size={13} /> Ahorro
+                </div>
+                <div className="hist-sum-amount" style={{
+                  color: stats.savingsRate >= 20 ? 'var(--ios-green)' : stats.savingsRate > 0 ? 'var(--ios-orange)' : 'var(--ios-red)', fontSize: 14
+                }}>{Math.max(0, stats.savingsRate).toFixed(1)}%</div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* 6-Month Chart */}
+        <div className="section-header">
+          <h2 className="section-title">Últimos 6 meses</h2>
+        </div>
+        <div className="chart-wrapper">
+          <div className="chart-bars">
+            {chartData.map((d, i) => (
+              <div key={i} className="chart-bar-group">
+                <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', width: '100%', height: 72 }}>
+                  <div className="chart-bar chart-bar-income" style={{ height: `${(d.income / maxVal) * 100}%`, flex: 1 }} />
+                  <div className="chart-bar chart-bar-expense" style={{ height: `${(d.expense / maxVal) * 100}%`, flex: 1 }} />
+                </div>
+                <span className="chart-month-label">{d.label}</span>
+              </div>
+            ))}
+          </div>
+          <div className="chart-legend">
+            <div className="legend-item"><div className="legend-dot" style={{ background: '#34C759' }} />Ingresos</div>
+            <div className="legend-item"><div className="legend-dot" style={{ background: '#FF3B30' }} />Gastos</div>
+          </div>
+        </div>
+
+        {/* Category Breakdown */}
+        {topExpenses.length > 0 && (
+          <>
+            <div className="section-header"><h2 className="section-title">Gastos por categoría</h2></div>
+            <div className="category-list-card">
+              {topExpenses.map(([cat, amount]) => (
+                <div key={cat} className="category-row">
+                  <div className="cat-icon-wrap">
+                    <Icon name={(CATEGORY_ICONS[cat] ?? 'package') as IconName} size={18} color="var(--text-secondary)" />
+                  </div>
+                  <div className="cat-info">
+                    <div className="cat-name">{cat}</div>
+                    <div className="cat-progress-bg">
+                      <div className="cat-progress-fill" style={{ width: `${(amount / stats.totalExpense) * 100}%` }} />
+                    </div>
+                  </div>
+                  <div className="cat-amount">{fmt(amount)}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Smart Insights */}
+        <div className="section-header"><h2 className="section-title">Análisis Inteligente</h2></div>
+        <div className="insight-list">
+          {insights.map((ins, i) => (
+            <div key={i} className={`insight-item ${ins.type}`}>
+              <span className="insight-emoji">{ins.icon}</span>
+              <p className="insight-msg" dangerouslySetInnerHTML={{ __html: ins.message }} />
+            </div>
+          ))}
+        </div>
+
+        {/* Recent Transactions */}
+        {stats.transactions.length > 0 && (
+          <>
+            <div className="section-header"><h2 className="section-title">Recientes</h2></div>
+            <div className="tx-group-card">
+              {stats.transactions.slice(0, 5).map((tx) => (
+                <div key={tx.id} className="tx-item">
+                  <div className={`tx-icon ${tx.type === 'income' ? 'tx-icon-income' : 'tx-icon-expense'}`}>
+                    <Icon name={(CATEGORY_ICONS[tx.category] ?? 'package') as IconName} size={18}
+                      color={tx.type === 'income' ? '#34C759' : '#FF3B30'} />
+                  </div>
+                  <div className="tx-info">
+                    <div className="tx-desc">{tx.description}</div>
+                    <div className="tx-meta">
+                      {tx.category}
+                      <span className={`method-badge ${tx.paymentMethod}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                        <Icon name={tx.paymentMethod === 'cash' ? 'banknote' : 'creditcard'} size={10} />
+                        {tx.paymentMethod === 'cash' ? 'Efectivo' : 'Transfer'}
+                      </span>
+                    </div>
+                  </div>
+                  <span className={`tx-amount ${tx.type === 'income' ? 'tx-amount-income' : 'tx-amount-expense'}`}>
+                    {tx.type === 'income' ? '+' : '−'}{fmt(tx.amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
