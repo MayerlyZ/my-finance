@@ -104,12 +104,12 @@ export function generateInsights(current: MonthlyStats, previous: MonthlyStats |
     else insights.push({ type: 'success', icon: '✅', message: `Tus gastos fijos son el <strong>${study.percentFixed.toFixed(0)}%</strong> de tus ingresos. Bajo control.` });
   }
 
-  if (study.freeAmount > 0) insights.push({ type: 'success', icon: '💰', message: `Tienes <strong>RD$${study.freeAmount.toLocaleString()}</strong> realmente libres este mes.` });
+  if (study.freeAmount > 0) insights.push({ type: 'success', icon: '💰', message: `Tienes <strong>${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(study.freeAmount)}</strong> realmente libres este mes.` });
   else if (study.totalIncome > 0) insights.push({ type: 'danger', icon: '🔴', message: `No tienes dinero libre este mes después de gastos fijos y variables.` });
 
   if (current.topExpenseCategory) {
     const amt = current.expensesByCategory[current.topExpenseCategory];
-    insights.push({ type: 'info', icon: '📊', message: `Mayor gasto: <strong>${current.topExpenseCategory}</strong> (RD$${amt.toLocaleString()}).` });
+    insights.push({ type: 'info', icon: '📊', message: `Mayor gasto: <strong>${current.topExpenseCategory}</strong> (${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(amt)}).` });
   }
 
   if (previous && previous.totalExpense > 0 && current.totalExpense > 0) {
