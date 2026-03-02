@@ -1,9 +1,24 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'react-toastify';
 import { useFinanceStore, getMonthlyStats } from '@/lib/financeStore';
 import { INCOME_CATEGORIES, CATEGORY_ICONS, MONTHS_ES, PaymentMethod } from '@/types/finance';
 import Icon, { IconName } from '@/components/Icon';
+
+const PAYMENT_LABEL: Record<PaymentMethod, string> = {
+  cash: 'Efectivo',
+  transfer: 'Transferencia',
+  pse: 'PSE',
+  card: 'Tarjeta',
+};
+
+const PAYMENT_ICON: Record<PaymentMethod, IconName> = {
+  cash: 'banknote',
+  transfer: 'creditcard',
+  pse: 'chart-bar',
+  card: 'creditcard',
+};
 
 export default function IngresosPage() {
   const now = new Date();
@@ -20,7 +35,6 @@ export default function IngresosPage() {
     paymentMethod: 'transfer' as PaymentMethod,
   });
   const [customCategory, setCustomCategory] = useState('');
-  const [success, setSuccess] = useState(false);
 
   const stats   = getMonthlyStats(transactions, month, year);
   const incomes = stats.transactions.filter((t) => t.type === 'income');
@@ -42,8 +56,12 @@ export default function IngresosPage() {
     });
     setForm({ ...form, amount: '', description: '', note: '' });
     setCustomCategory('');
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 2200);
+    toast.success(`💰 Ingreso de ${fmt(parseFloat(form.amount))} registrado`);
+  }
+
+  function handleDelete(id: string, amount: number) {
+    deleteTransaction(id);
+    toast.info(`🗑️ Ingreso de ${fmt(amount)} eliminado`);
   }
 
   function changeMonth(dir: number) {
@@ -70,6 +88,7 @@ export default function IngresosPage() {
 
           <div className="form-group">
             <label className="form-label">¿Cómo recibiste el dinero?</label>
+            {/* Primary methods */}
             <div className="payment-toggle">
               <button type="button"
                 className={`payment-option ${form.paymentMethod === 'cash' ? 'selected' : ''}`}
@@ -131,7 +150,7 @@ export default function IngresosPage() {
           </div>
 
           <button type="submit" className="btn btn-green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            {success ? <><Icon name="checkmark-circle" size={18} color="#fff" /> ¡Guardado!</> : <><Icon name="plus-circle" size={18} color="#fff" /> Agregar Ingreso</>}
+            <Icon name="plus-circle" size={18} color="#fff" /> Agregar Ingreso
           </button>
         </form>
 
@@ -170,13 +189,14 @@ export default function IngresosPage() {
                       <div className="tx-meta">
                         {tx.category} · {tx.date}
                         <span className={`method-badge ${tx.paymentMethod}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                          <Icon name={tx.paymentMethod === 'cash' ? 'banknote' : 'creditcard'} size={10} />
+                          <Icon name={PAYMENT_ICON[tx.paymentMethod as PaymentMethod] ?? 'creditcard'} size={10} />
+                          {PAYMENT_LABEL[tx.paymentMethod as PaymentMethod] ?? tx.paymentMethod}
                         </span>
                       </div>
                       {tx.note && <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', marginTop: 2, fontStyle: 'italic' }}>📝 {tx.note}</div>}
                     </div>
                     <span className="tx-amount tx-amount-income">+{fmt(tx.amount)}</span>
-                    <button className="tx-delete-btn" onClick={() => deleteTransaction(tx.id)}>
+                    <button className="tx-delete-btn" onClick={() => handleDelete(tx.id, tx.amount)}>
                       <Icon name="trash" size={16} color="var(--ios-red)" />
                     </button>
                   </div>

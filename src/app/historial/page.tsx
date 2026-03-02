@@ -1,9 +1,24 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'react-toastify';
 import { useFinanceStore } from '@/lib/financeStore';
-import { MONTHS_ES, CATEGORY_ICONS, TransactionType } from '@/types/finance';
+import { MONTHS_ES, CATEGORY_ICONS, TransactionType, PaymentMethod } from '@/types/finance';
 import Icon, { IconName } from '@/components/Icon';
+
+const PAYMENT_LABEL: Record<PaymentMethod, string> = {
+  cash: 'Efectivo',
+  transfer: 'Transfer.',
+  pse: 'PSE',
+  card: 'Tarjeta',
+};
+
+const PAYMENT_ICON: Record<PaymentMethod, IconName> = {
+  cash: 'banknote',
+  transfer: 'creditcard',
+  pse: 'chart-bar',
+  card: 'creditcard',
+};
 
 type FilterType = 'all' | TransactionType;
 
@@ -38,14 +53,23 @@ export default function HistorialPage() {
 
   const totalIncome  = monthFiltered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalExpense = monthFiltered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-  const byCash       = monthFiltered.reduce((s, t) => s + (t.paymentMethod === 'cash' ? t.amount : 0), 0);
-  const byTransfer   = monthFiltered.reduce((s, t) => s + (t.paymentMethod === 'transfer' ? t.amount : 0), 0);
+  const expensesOnly = monthFiltered.filter(t => t.type === 'expense');
+  const byCash       = expensesOnly.reduce((s, t) => s + (t.paymentMethod === 'cash'     ? t.amount : 0), 0);
+  const byTransfer   = expensesOnly.reduce((s, t) => s + (t.paymentMethod === 'transfer'  ? t.amount : 0), 0);
+  const byPSE        = expensesOnly.reduce((s, t) => s + (t.paymentMethod === 'pse'       ? t.amount : 0), 0);
+  const byCard       = expensesOnly.reduce((s, t) => s + (t.paymentMethod === 'card'      ? t.amount : 0), 0);
 
   function changeMonth(dir: number) {
     let m = month + dir, y = year;
     if (m > 11) { m = 0; y++; } if (m < 0) { m = 11; y--; }
     setMonth(m); setYear(y);
     setSearch('');
+  }
+
+  function handleDelete(id: string, amount: number, type: TransactionType) {
+    deleteTransaction(id);
+    const label = type === 'income' ? 'Ingreso' : 'Gasto';
+    toast.info(`🗑️ ${label} de ${fmt(amount)} eliminado`);
   }
 
   const groupedByDate: Record<string, typeof filtered> = {};
@@ -135,10 +159,26 @@ export default function HistorialPage() {
             </div>
             <div className="hist-sum-pill">
               <div className="hist-sum-label" style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
-                <Icon name="creditcard" size={12} /> Transferencia
+                <Icon name="creditcard" size={12} /> Transfer.
               </div>
               <div className="hist-sum-amount" style={{ color: 'var(--ios-blue)', fontSize: 14 }}>{fmt(byTransfer)}</div>
             </div>
+            {byPSE > 0 && (
+              <div className="hist-sum-pill">
+                <div className="hist-sum-label" style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+                  <Icon name="chart-bar" size={12} /> PSE
+                </div>
+                <div className="hist-sum-amount" style={{ color: 'var(--ios-orange)', fontSize: 14 }}>{fmt(byPSE)}</div>
+              </div>
+            )}
+            {byCard > 0 && (
+              <div className="hist-sum-pill">
+                <div className="hist-sum-label" style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+                  <Icon name="creditcard" size={12} /> Tarjeta
+                </div>
+                <div className="hist-sum-amount" style={{ color: '#AF52DE', fontSize: 14 }}>{fmt(byCard)}</div>
+              </div>
+            )}
           </div>
         )}
 
@@ -188,8 +228,8 @@ export default function HistorialPage() {
                         <div className="tx-meta">
                           {tx.category}
                           <span className={`method-badge ${tx.paymentMethod}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                            <Icon name={tx.paymentMethod === 'cash' ? 'banknote' : 'creditcard'} size={10} />
-                            {tx.paymentMethod === 'cash' ? 'Efectivo' : 'Transfer'}
+                            <Icon name={PAYMENT_ICON[tx.paymentMethod as PaymentMethod] ?? 'creditcard'} size={10} />
+                            {PAYMENT_LABEL[tx.paymentMethod as PaymentMethod] ?? tx.paymentMethod}
                           </span>
                         </div>
                         {tx.note && (
@@ -201,7 +241,7 @@ export default function HistorialPage() {
                       <span className={`tx-amount ${tx.type === 'income' ? 'tx-amount-income' : 'tx-amount-expense'}`}>
                         {tx.type === 'income' ? '+' : '−'}{fmt(tx.amount)}
                       </span>
-                      <button className="tx-delete-btn" onClick={() => deleteTransaction(tx.id)}>
+                      <button className="tx-delete-btn" onClick={() => handleDelete(tx.id, tx.amount, tx.type)}>
                         <Icon name="trash" size={16} color="var(--ios-red)" />
                       </button>
                     </div>

@@ -40,13 +40,19 @@ export function getMonthlyStats(txs: Transaction[], month: number, year: number)
 
   const expensesByCategory: Record<string, number> = {};
   const incomesByCategory: Record<string, number> = {};
-  let byCash = 0, byTransfer = 0;
+  let byCash = 0, byTransfer = 0, byPSE = 0, byCard = 0;
 
   filtered.forEach((tx) => {
-    if (tx.type === 'expense') expensesByCategory[tx.category] = (expensesByCategory[tx.category] || 0) + tx.amount;
-    else incomesByCategory[tx.category] = (incomesByCategory[tx.category] || 0) + tx.amount;
-    if (tx.paymentMethod === 'cash') byCash += tx.amount;
-    else byTransfer += tx.amount;
+    if (tx.type === 'expense') {
+      expensesByCategory[tx.category] = (expensesByCategory[tx.category] || 0) + tx.amount;
+      // Track expenses by payment method
+      if (tx.paymentMethod === 'cash') byCash += tx.amount;
+      else if (tx.paymentMethod === 'transfer') byTransfer += tx.amount;
+      else if (tx.paymentMethod === 'pse') byPSE += tx.amount;
+      else if (tx.paymentMethod === 'card') byCard += tx.amount;
+    } else {
+      incomesByCategory[tx.category] = (incomesByCategory[tx.category] || 0) + tx.amount;
+    }
   });
 
   const topExpenseCategory = Object.keys(expensesByCategory).sort((a, b) => expensesByCategory[b] - expensesByCategory[a])[0] || null;
@@ -56,7 +62,7 @@ export function getMonthlyStats(txs: Transaction[], month: number, year: number)
     month, year, totalIncome, totalExpense, balance, savingsRate,
     expensesByCategory, incomesByCategory, topExpenseCategory, topIncomeCategory,
     transactions: filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    byCash, byTransfer,
+    byCash, byTransfer, byPSE, byCard,
   };
 }
 

@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import 'react-toastify/dist/ReactToastify.css';
 import BottomNav from '@/components/BottomNav';
 import ClientWrapper from '@/components/ClientWrapper';
+import { ToastContainer } from 'react-toastify';
 
 export const metadata: Metadata = {
   title: 'Mi Organizador Financiero',
@@ -39,6 +41,16 @@ export default function RootLayout({
             <BottomNav />
           </div>
         </ClientWrapper>
+        <ToastContainer
+          position="top-center"
+          autoClose={2500}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          pauseOnHover={false}
+          theme="colored"
+          style={{ top: '16px', fontSize: '14px' }}
+        />
       </body>
     </html>
   );

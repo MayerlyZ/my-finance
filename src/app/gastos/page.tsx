@@ -1,9 +1,24 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'react-toastify';
 import { useFinanceStore, getMonthlyStats } from '@/lib/financeStore';
 import { EXPENSE_CATEGORIES, CATEGORY_ICONS, MONTHS_ES, PaymentMethod } from '@/types/finance';
 import Icon, { IconName } from '@/components/Icon';
+
+const PAYMENT_LABEL: Record<PaymentMethod, string> = {
+  cash: 'Efectivo',
+  transfer: 'Transferencia',
+  pse: 'PSE',
+  card: 'Tarjeta',
+};
+
+const PAYMENT_ICON: Record<PaymentMethod, IconName> = {
+  cash: 'banknote',
+  transfer: 'creditcard',
+  pse: 'chart-bar',
+  card: 'creditcard',
+};
 
 export default function GastosPage() {
   const now = new Date();
@@ -20,7 +35,6 @@ export default function GastosPage() {
     paymentMethod: 'cash' as PaymentMethod,
   });
   const [customCategory, setCustomCategory] = useState('');
-  const [success, setSuccess] = useState(false);
 
   const stats    = getMonthlyStats(transactions, month, year);
   const expenses = stats.transactions.filter((t) => t.type === 'expense');
@@ -42,8 +56,12 @@ export default function GastosPage() {
     });
     setForm({ ...form, amount: '', description: '', note: '' });
     setCustomCategory('');
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 2200);
+    toast.success(`💸 Gasto de ${fmt(parseFloat(form.amount))} registrado`);
+  }
+
+  function handleDelete(id: string, amount: number) {
+    deleteTransaction(id);
+    toast.info(`🗑️ Gasto de ${fmt(amount)} eliminado`);
   }
 
   function changeMonth(dir: number) {
@@ -70,7 +88,8 @@ export default function GastosPage() {
 
           <div className="form-group">
             <label className="form-label">¿Cómo pagaste?</label>
-            <div className="payment-toggle">
+            {/* Primary methods */}
+            <div className="payment-toggle" style={{ marginBottom: 8 }}>
               <button type="button"
                 className={`payment-option ${form.paymentMethod === 'cash' ? 'selected' : ''}`}
                 onClick={() => setForm({ ...form, paymentMethod: 'cash' })}>
@@ -80,6 +99,22 @@ export default function GastosPage() {
                 className={`payment-option ${form.paymentMethod === 'transfer' ? 'selected' : ''}`}
                 onClick={() => setForm({ ...form, paymentMethod: 'transfer' })}>
                 <Icon name="creditcard" size={16} /> Transferencia
+              </button>
+            </div>
+            {/* Other methods label */}
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 6 }}>
+              Otros métodos
+            </div>
+            <div className="payment-toggle">
+              <button type="button"
+                className={`payment-option ${form.paymentMethod === 'pse' ? 'selected' : ''}`}
+                onClick={() => setForm({ ...form, paymentMethod: 'pse' })}>
+                <Icon name="chart-bar" size={16} /> PSE
+              </button>
+              <button type="button"
+                className={`payment-option ${form.paymentMethod === 'card' ? 'selected' : ''}`}
+                onClick={() => setForm({ ...form, paymentMethod: 'card' })}>
+                <Icon name="creditcard" size={16} /> Tarjeta
               </button>
             </div>
           </div>
@@ -131,7 +166,7 @@ export default function GastosPage() {
           </div>
 
           <button type="submit" className="btn btn-red" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            {success ? <><Icon name="checkmark-circle" size={18} color="#fff" /> ¡Guardado!</> : <><Icon name="plus-circle" size={18} color="#fff" /> Agregar Gasto</>}
+            <Icon name="plus-circle" size={18} color="#fff" /> Agregar Gasto
           </button>
         </form>
 
@@ -170,13 +205,14 @@ export default function GastosPage() {
                       <div className="tx-meta">
                         {tx.category} · {tx.date}
                         <span className={`method-badge ${tx.paymentMethod}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                          <Icon name={tx.paymentMethod === 'cash' ? 'banknote' : 'creditcard'} size={10} />
+                          <Icon name={PAYMENT_ICON[tx.paymentMethod as PaymentMethod] ?? 'creditcard'} size={10} />
+                          {PAYMENT_LABEL[tx.paymentMethod as PaymentMethod] ?? tx.paymentMethod}
                         </span>
                       </div>
                       {tx.note && <div style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', marginTop: 2, fontStyle: 'italic' }}>📝 {tx.note}</div>}
                     </div>
                     <span className="tx-amount tx-amount-expense">−{fmt(tx.amount)}</span>
-                    <button className="tx-delete-btn" onClick={() => deleteTransaction(tx.id)}>
+                    <button className="tx-delete-btn" onClick={() => handleDelete(tx.id, tx.amount)}>
                       <Icon name="trash" size={16} color="var(--ios-red)" />
                     </button>
                   </div>

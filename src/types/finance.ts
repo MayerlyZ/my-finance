@@ -1,5 +1,5 @@
 export type TransactionType = 'income' | 'expense';
-export type PaymentMethod = 'cash' | 'transfer';
+export type PaymentMethod = 'cash' | 'transfer' | 'pse' | 'card';
 
 export type IncomeCategory =
   | 'Salario'
@@ -87,6 +87,8 @@ export interface MonthlyStats {
   transactions: Transaction[];
   byCash: number;
   byTransfer: number;
+  byPSE: number;
+  byCard: number;
 }
 
 export interface FinancialStudy {
