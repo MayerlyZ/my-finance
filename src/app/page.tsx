@@ -17,7 +17,8 @@ export default function DashboardPage() {
   const [month, setMonth] = useState(now.getMonth());
   const [year, setYear] = useState(now.getFullYear());
   const [userName, setUserName] = useState('');
-  const { transactions, fixedExpenses, isLoaded } = useFinanceStore();
+  const [showSavingsInfo, setShowSavingsInfo] = useState(false);
+  const { transactions, fixedExpenses, loans, isLoaded } = useFinanceStore();
 
   useEffect(() => {
     setUserName(getUserName());
@@ -43,6 +44,9 @@ export default function DashboardPage() {
 
   const topExpenses = Object.entries(stats.expensesByCategory).sort(([, a], [, b]) => b - a).slice(0, 4);
   const hasFixedExpenses = study.totalFixed > 0;
+  const pendingGiven    = loans.filter(l => l.type === 'given'    && l.status === 'pending').reduce((s, l) => s + l.amount, 0);
+  const pendingReceived = loans.filter(l => l.type === 'received' && l.status === 'pending').reduce((s, l) => s + l.amount, 0);
+  const hasLoans = pendingGiven > 0 || pendingReceived > 0;
 
   return (
     <div className="page-animate">
@@ -174,9 +178,13 @@ export default function DashboardPage() {
                   <div className="hist-sum-amount" style={{ color: '#AF52DE', fontSize: 14 }}>{fmt(stats.byCard)}</div>
                 </div>
               )}
-              <div className="hist-sum-pill">
+              <button
+                className="hist-sum-pill"
+                onClick={() => setShowSavingsInfo(true)}
+                style={{ cursor: 'pointer', border: 'none', textAlign: 'center', background: 'inherit' }}
+              >
                 <div className="hist-sum-label" style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
-                  <Icon name="chart-bar" size={13} /> Ahorro
+                  <Icon name="chart-bar" size={13} /> Ahorro <span style={{ fontSize: 10, opacity: 0.5 }}>ⓘ</span>
                 </div>
                 {(() => {
                   const realRate = stats.totalIncome > 0 ? (study.freeAmount / stats.totalIncome) * 100 : 0;
@@ -186,6 +194,41 @@ export default function DashboardPage() {
                     }}>{Math.max(0, realRate).toFixed(1)}%</div>
                   );
                 })()}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Loans Summary */}
+        {isLoaded && hasLoans && (
+          <>
+            <div className="section-header">
+              <h2 className="section-title">Préstamos Pendientes</h2>
+              <a href="/prestamos" style={{ fontSize: 13, color: 'var(--ios-blue)', fontWeight: 600, textDecoration: 'none' }}>Ver todos</a>
+            </div>
+            <div className="study-card" style={{ marginBottom: 14 }}>
+              <div className="study-row">
+                <span className="study-label">
+                  <Icon name="arrow-up-circle" size={16} color="var(--ios-orange)" />
+                  Me deben
+                </span>
+                <span className="study-amount" style={{ color: 'var(--ios-orange)' }}>{fmt(pendingGiven)}</span>
+              </div>
+              <div className="study-row">
+                <span className="study-label">
+                  <Icon name="arrow-down-circle" size={16} color="var(--ios-purple)" />
+                  Debo
+                </span>
+                <span className="study-amount" style={{ color: 'var(--ios-purple)' }}>{fmt(pendingReceived)}</span>
+              </div>
+              <div className="study-row total-row">
+                <span className="study-label bold">
+                  <Icon name="arrow-swap" size={16} color="var(--text-secondary)" />
+                  Neto
+                </span>
+                <span className={`study-amount big ${pendingGiven - pendingReceived >= 0 ? 'green' : 'red'}`}>
+                  {fmt(pendingGiven - pendingReceived)}
+                </span>
               </div>
             </div>
           </>
@@ -277,6 +320,88 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      {/* Savings Rate Info Modal */}
+      {showSavingsInfo && (() => {
+        const realRate = stats.totalIncome > 0 ? (study.freeAmount / stats.totalIncome) * 100 : 0;
+        return (
+          <div
+            onClick={() => setShowSavingsInfo(false)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 999,
+              background: 'rgba(0,0,0,0.45)',
+              display: 'flex', alignItems: 'flex-end',
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                background: 'var(--card-bg, #fff)',
+                borderRadius: '24px 24px 0 0',
+                padding: '24px 20px 36px',
+                width: '100%',
+                boxShadow: '0 -8px 40px rgba(0,0,0,0.18)',
+              }}
+            >
+              {/* Handle */}
+              <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(0,0,0,0.15)', margin: '0 auto 20px' }} />
+
+              <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>📊 Tasa de Ahorro Real</h3>
+              <p style={{ fontSize: 13, color: 'rgba(0,0,0,0.5)', marginBottom: 20, lineHeight: 1.5 }}>
+                Es el porcentaje de tus ingresos que realmente queda libre después de pagar <strong>todos</strong> tus compromisos.
+              </p>
+
+              {/* Formula */}
+              <div style={{ background: 'rgba(0,0,0,0.04)', borderRadius: 16, padding: '16px', marginBottom: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 10 }}>
+                  Fórmula
+                </div>
+                {[
+                  { label: 'Ingresos del mes',     value: fmt(stats.totalIncome),    color: 'var(--ios-green)',  sign: '' },
+                  { label: 'Gastos fijos',          value: fmt(study.totalFixed),      color: 'var(--ios-red)',    sign: '−' },
+                  { label: 'Gastos variables',      value: fmt(stats.totalExpense),   color: 'var(--ios-red)',    sign: '−' },
+                ].map(row => (
+                  <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, fontSize: 14 }}>
+                    <span style={{ color: 'rgba(0,0,0,0.6)' }}>{row.sign} {row.label}</span>
+                    <span style={{ fontWeight: 700, color: row.color }}>{row.value}</span>
+                  </div>
+                ))}
+                <div style={{ height: 1, background: 'rgba(0,0,0,0.1)', margin: '10px 0' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 15 }}>
+                  <span style={{ fontWeight: 700 }}>= Dinero libre</span>
+                  <span style={{ fontWeight: 800, color: study.freeAmount >= 0 ? 'var(--ios-green)' : 'var(--ios-red)', fontSize: 17 }}>{fmt(study.freeAmount)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 15, marginTop: 8 }}>
+                  <span style={{ fontWeight: 700 }}>Tasa = libre ÷ ingresos</span>
+                  <span style={{ fontWeight: 800, fontSize: 20, color: realRate >= 20 ? 'var(--ios-green)' : realRate > 0 ? 'var(--ios-orange)' : 'var(--ios-red)' }}>
+                    {Math.max(0, realRate).toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+
+              {/* Scale */}
+              <div style={{ fontSize: 13, lineHeight: 1.8 }}>
+                <div>🟢 <strong>≥ 20%</strong> — Excelente, estás ahorrando bien</div>
+                <div>🟡 <strong>1–19%</strong> — Positivo, pero puedes mejorar</div>
+                <div>🔴 <strong>0% o menos</strong> — Tus gastos superan tus ingresos</div>
+              </div>
+
+              <button
+                onClick={() => setShowSavingsInfo(false)}
+                style={{
+                  marginTop: 20, width: '100%', padding: '14px',
+                  background: 'var(--ios-blue)', color: '#fff',
+                  border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
