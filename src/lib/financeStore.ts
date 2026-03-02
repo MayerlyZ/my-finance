@@ -92,8 +92,9 @@ export function generateInsights(current: MonthlyStats, previous: MonthlyStats |
   }
 
   if (current.totalIncome > 0) {
-    if (current.savingsRate >= 20) insights.push({ type: 'success', icon: '🎉', message: `¡Excelente! Tu tasa de ahorro es <strong>${current.savingsRate.toFixed(0)}%</strong>.` });
-    else if (current.savingsRate > 0) insights.push({ type: 'warning', icon: '💡', message: `Ahorro del <strong>${current.savingsRate.toFixed(0)}%</strong>. Intenta reducir gastos.` });
+    const realRate = (study.freeAmount / current.totalIncome) * 100;
+    if (realRate >= 20) insights.push({ type: 'success', icon: '🎉', message: `¡Excelente! Tu tasa de ahorro real es <strong>${realRate.toFixed(0)}%</strong>.` });
+    else if (realRate > 0) insights.push({ type: 'warning', icon: '💡', message: `Ahorro real del <strong>${realRate.toFixed(0)}%</strong>. Intenta reducir gastos.` });
     else insights.push({ type: 'danger', icon: '🚨', message: `Tus gastos superan tus ingresos este mes. ¡Revisa tus finanzas!` });
   }
 

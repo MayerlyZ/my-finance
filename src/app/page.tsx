@@ -145,7 +145,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Payment method breakdown */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
               <div className="hist-sum-pill">
                 <div className="hist-sum-label" style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
                   <Icon name="banknote" size={13} /> Efectivo
@@ -158,13 +158,34 @@ export default function DashboardPage() {
                 </div>
                 <div className="hist-sum-amount" style={{ color: 'var(--ios-blue)', fontSize: 14 }}>{fmt(stats.byTransfer)}</div>
               </div>
+              {stats.byPSE > 0 && (
+                <div className="hist-sum-pill">
+                  <div className="hist-sum-label" style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+                    <Icon name="chart-bar" size={13} /> PSE
+                  </div>
+                  <div className="hist-sum-amount" style={{ color: 'var(--ios-orange)', fontSize: 14 }}>{fmt(stats.byPSE)}</div>
+                </div>
+              )}
+              {stats.byCard > 0 && (
+                <div className="hist-sum-pill">
+                  <div className="hist-sum-label" style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+                    <Icon name="creditcard" size={13} /> Tarjeta
+                  </div>
+                  <div className="hist-sum-amount" style={{ color: '#AF52DE', fontSize: 14 }}>{fmt(stats.byCard)}</div>
+                </div>
+              )}
               <div className="hist-sum-pill">
                 <div className="hist-sum-label" style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
                   <Icon name="chart-bar" size={13} /> Ahorro
                 </div>
-                <div className="hist-sum-amount" style={{
-                  color: stats.savingsRate >= 20 ? 'var(--ios-green)' : stats.savingsRate > 0 ? 'var(--ios-orange)' : 'var(--ios-red)', fontSize: 14
-                }}>{Math.max(0, stats.savingsRate).toFixed(1)}%</div>
+                {(() => {
+                  const realRate = stats.totalIncome > 0 ? (study.freeAmount / stats.totalIncome) * 100 : 0;
+                  return (
+                    <div className="hist-sum-amount" style={{
+                      color: realRate >= 20 ? 'var(--ios-green)' : realRate > 0 ? 'var(--ios-orange)' : 'var(--ios-red)', fontSize: 14
+                    }}>{Math.max(0, realRate).toFixed(1)}%</div>
+                  );
+                })()}
               </div>
             </div>
           </>
